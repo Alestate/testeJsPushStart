@@ -14,7 +14,7 @@ var levels = {},
     pathLenght: 600,
     pathY: 300
   },
-  textureArray = ['resize1', 'resize2', 'colorize', 'rotate', 'select'],
+  textureArray = ["resize1", "resize2", "colorize", "rotate", "select"],
   textureCount = 0,
   scnCurrent,
   scnOld;
@@ -27,7 +27,7 @@ var Graphics = PIXI.Graphics,
   Sprite = PIXI.Sprite;
 
 //carrega Json e inicia sprites
-$.getJSON("levels.json", function (ret) {
+$.getJSON("levels.json", function(ret) {
   levels = ret;
   loadSprites();
 });
@@ -43,19 +43,28 @@ function setup() {
   app.renderer.render(stage);
 }
 
-function gameLoop() { }
+function gameLoop() {}
 
-function play() { }
+function play() {}
 
-function end() { }
+function end() {}
 
-function defBlock(height, color, id) {
+var defBlock = function(height, color, id) {
   var obj = new Graphics();
   var alpha;
 
   switch (id) {
     case 1:
       alpha = 1;
+
+      obj.loopBol=true;
+      obj.dataFunc = new fxGlow(obj);
+      
+      obj.interactive = true;
+      obj.buttonMode = true;
+      obj.on("pointerdown", function() {
+        obj.loopBol=false;
+      });
       break;
 
     case -1:
@@ -77,7 +86,7 @@ function defBlock(height, color, id) {
   obj.y = pathProp.pathY;
 
   return obj;
-}
+};
 
 function makePath() {
   var obj = new Graphics();
@@ -108,11 +117,11 @@ function makeText(text) {
 }
 
 function loadSprites() {
-  Loader.add('assets/imgs/resize1.png')
-    .add('assets/imgs/resize2.png')
-    .add('assets/imgs/colorize.png')
-    .add('assets/imgs/rotate.png')
-    .add('assets/imgs/select.png')
+  Loader.add("assets/imgs/resize1.png")
+    .add("assets/imgs/resize2.png")
+    .add("assets/imgs/colorize.png")
+    .add("assets/imgs/rotate.png")
+    .add("assets/imgs/select.png")
     .load(setup);
 }
 
@@ -126,7 +135,7 @@ function setModifier(count, index) {
     modifierName =
       objLayerModifs.type +
       objLayerModifs[Object.keys(objLayerModifs)[1]].toString();
-  };
+  }
 
   obj = new Sprite(
     Loader.resources["assets/imgs/" + modifierName + ".png"].texture
@@ -149,10 +158,10 @@ function setModifier(count, index) {
   if (modifierName == "select") {
     obj.interactive = true;
     obj.buttonMode = true;
-    obj.on('pointerdown', function () {
+    obj.on("pointerdown", function() {
       selectModifier(this);
     });
-  };
+  }
 
   return obj;
 }
@@ -161,20 +170,14 @@ function setLevel() {
   scnCurrent = new Container();
 
   //bloco inicial
-  playerBlock = defBlock(
+  playerBlock = new defBlock(
     levels[currentLevel].initial.size,
     levels[currentLevel].initial.color,
     1
   );
 
-  playerBlock.interactive = true;
-  playerBlock.buttonMode = true;
-  playerBlock.on('pointerdown', function () {
-    console.log('aaaa');
-  });
-
   //bloco final
-  finalBlock = defBlock(
+  finalBlock = new defBlock(
     levels[currentLevel].final.size,
     levels[currentLevel].final.color,
     -1
@@ -197,13 +200,33 @@ function setLevel() {
 }
 
 function selectModifier(obj) {
-
-  var texture = PIXI.Texture.fromImage('assets/imgs/' + textureArray[textureCount] + '.png');
+  var texture = PIXI.Texture.fromImage(
+    "assets/imgs/" + textureArray[textureCount] + ".png"
+  );
   obj.setTexture(texture);
 
   if (textureCount < textureArray.length - 2) {
     textureCount++;
   } else {
     textureCount = 0;
-  };
+  }
 }
+
+var fxGlow = function(obj) {
+  var alpha = 1,
+    dir = -1,
+    loopFunc = setInterval(frame, 17);
+
+  function frame() {
+    obj.alpha = alpha;
+    alpha += 0.01 * dir;
+    if (alpha > 1 || alpha < 0.7) {
+      dir = dir * -1;
+    }
+
+    if(!obj.loopBol){
+      clearInterval(loopFunc);
+      obj.alpha = 1;
+    }
+  }
+};
