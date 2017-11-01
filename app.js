@@ -4,11 +4,11 @@ var renderer = PIXI.autoDetectRenderer(800, 600);
 
 //global vars
 var levels = {},
-  currentLevel = 0,
+  currentLevel = 1,
   playerBlock,
   finalBlock,
   title,
-  modifiers = [],
+  activeModifiers = [],
   widthUnit = 50,
   pathProp = {
     pathLenght: 600,
@@ -17,6 +17,7 @@ var levels = {},
   textureArray = ["resize1", "resize2", "colorize", "rotate", "select"],
   textureCount = 0,
   scnCurrent,
+  actionCounter = 0,
   scnOld;
 
 //alias
@@ -24,7 +25,8 @@ var Graphics = PIXI.Graphics,
   Container = PIXI.Container,
   Text = PIXI.Text,
   Loader = PIXI.loader,
-  Sprite = PIXI.Sprite;
+  Sprite = PIXI.Sprite,
+  stage = new Container();
 
 //carrega Json e inicia sprites
 $.getJSON("levels.json", function(ret) {
@@ -35,11 +37,8 @@ $.getJSON("levels.json", function(ret) {
 document.body.appendChild(app.renderer.view);
 
 function setup() {
-  var stage = new Container();
-
+  //cria fase
   setLevel();
-  //console.log(scnCurrent.children[4].x);
-
   app.renderer.render(stage);
 }
 
@@ -49,40 +48,29 @@ function play() {}
 
 function end() {}
 
-var defBlock = function(height, color, id) {
+var defBlock = function(height, color, alpha, id) {
   var obj = new Graphics();
-  var alpha;
 
-  switch (id) {
-    case 1:
-      alpha = 1;
+  obj.loopBol = true;
+  obj.dataFunc = new fxGlow(obj);
 
-      obj.loopBol=true;
-      obj.dataFunc = new fxGlow(obj);
-      
-      obj.interactive = true;
-      obj.buttonMode = true;
-      obj.on("pointerdown", function() {
-        obj.loopBol=false;
-      });
-      break;
+  obj.interactive = true;
+  obj.buttonMode = true;
 
-    case -1:
-      alpha = 0.3;
-      break;
-  }
+  //acoes na selecao do playerBlock
+  obj.on("pointerdown", function() {
+    obj.loopBol = false;
+    setAction(obj);
+  });
 
   obj.beginFill(parseInt("0x" + color.slice(1)), alpha);
 
   obj.lineStyle(2, 0xffffff, 0.5);
-  obj.drawRoundedRect(0, 0, widthUnit, widthUnit * height, 5);
+  obj.drawRoundedRect(0, 0, widthUnit - 2, widthUnit * height - 2, 5);
   obj.endFill();
 
-  obj.pivot.set(widthUnit / 2, widthUnit * height / 2);
-  obj.x =
-    app.renderer.view.width / 2 -
-    pathProp.pathLenght / 2 * id -
-    widthUnit / 2 * id;
+  obj.pivot.set(widthUnit / 2 - 1, widthUnit * height / 2 - 1);
+  obj.x = (app.renderer.view.width / 2) - (pathProp.pathLenght / 2 * id) - (widthUnit / 2 * id);
   obj.y = pathProp.pathY;
 
   return obj;
@@ -126,7 +114,8 @@ function loadSprites() {
 }
 
 function setModifier(count, index) {
-  var obj, modifierName;
+  var obj, modifierName, modifFunc;
+
   var objLayerModifs = levels[currentLevel].modifiers[index];
 
   modifierName = objLayerModifs.type;
@@ -142,6 +131,66 @@ function setModifier(count, index) {
   );
 
   obj.anchor.set(0.5, 0.5);
+
+  //define funcoes de modificacao
+  switch (modifierName) {
+    //reduz tamanho
+    case "resize1":
+      obj.modFunc = function(target, id) {
+        TweenMax.to(target, 0.5, {
+          height: 50,
+          ease: Power2.easeOut,
+          onComplete: setAction,
+          onCompleteParams: [target]
+        });
+
+        obj.destroy();
+      };
+      break;
+
+    //aumenta tamanho
+    case "resize2":
+      obj.modFunc = function(target, id) {
+        TweenMax.to(target, 0.5, {
+          height: 100,
+          ease: Power2.easeOut,
+          onComplete: setAction,
+          onCompleteParams: [target]
+        });
+
+        obj.destroy();
+      };
+      break;
+
+    //muda cor
+    case "colorize":
+      obj.modFunc = function(target, id) {
+        var newPlayerBlock=new defBlock(1,'#0000ff', 0, 1);
+        newPlayerBlock.x=obj.x;
+        newPlayerBlock.y=obj.y;
+        newPlayerBlock.alpha=0;
+        newPlayerBlock.loopBol = false;
+
+        scnCurrent.addChild(newPlayerBlock);
+
+        var update = function() {
+          target.alpha -= 0.033;
+          newPlayerBlock.alpha += 0.033;
+
+          console.log(newPlayerBlock.alpha);
+        };
+
+        TweenMax.to(target, 0.5, {
+          onUpdate: update,
+          onUpdateParams: [target],
+          onComplete:setAction,
+          onCompleteParams:[newPlayerBlock]
+        });
+
+        obj.destroy();
+      };
+      break;
+  }
 
   switch (count) {
     case 1:
@@ -173,6 +222,7 @@ function setLevel() {
   playerBlock = new defBlock(
     levels[currentLevel].initial.size,
     levels[currentLevel].initial.color,
+    1,
     1
   );
 
@@ -180,6 +230,7 @@ function setLevel() {
   finalBlock = new defBlock(
     levels[currentLevel].final.size,
     levels[currentLevel].final.color,
+    .3,
     -1
   );
 
@@ -190,7 +241,8 @@ function setLevel() {
   scnCurrent.addChild(title);
 
   for (var n = 0; n < levels[currentLevel].modifiers.length; n++) {
-    scnCurrent.addChild(setModifier(levels[currentLevel].modifiers.length, n));
+    activeModifiers.push(setModifier(levels[currentLevel].modifiers.length, n));
+    scnCurrent.addChild(activeModifiers[n]);
   }
 
   scnCurrent.addChild(finalBlock);
@@ -212,6 +264,37 @@ function selectModifier(obj) {
   }
 }
 
+//define proxima acao para playerBlock
+function setAction(obj) {
+  if (actionCounter < activeModifiers.length) {
+    moveToTarget(obj, activeModifiers[actionCounter]);
+    actionCounter++;
+  } else {
+    moveToTarget(obj, finalBlock);
+  }
+}
+
+function moveToTarget(obj, target) {
+  TweenMax.to(obj, 1.3, {
+    x: target.x,
+    ease: Power1.easeInOut,
+    onComplete: verifyEnd,
+    onCompleteParams: [obj]
+  });
+}
+
+function verifyEnd(obj) {
+  if (obj.x == finalBlock.x) {
+    end();
+  } else {
+    applyModify(obj);
+  }
+}
+
+function applyModify(obj) {
+  var activeMod = activeModifiers[actionCounter - 1].modFunc(obj, 1);
+}
+
 var fxGlow = function(obj) {
   var alpha = 1,
     dir = -1,
@@ -224,7 +307,7 @@ var fxGlow = function(obj) {
       dir = dir * -1;
     }
 
-    if(!obj.loopBol){
+    if (!obj.loopBol) {
       clearInterval(loopFunc);
       obj.alpha = 1;
     }
