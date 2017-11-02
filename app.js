@@ -2,9 +2,18 @@
 var app = new PIXI.Application(800, 600, { backgroundColor: 0x000000 });
 var renderer = PIXI.autoDetectRenderer(800, 600);
 
+//alias
+const Graphics = PIXI.Graphics,
+  Container = PIXI.Container,
+  Text = PIXI.Text,
+  Loader = PIXI.loader,
+  Sprite = PIXI.Sprite,
+  Texture = PIXI.Texture,
+  stage = new Container();
+
 //global vars
 var levels = {},
-  currentLevel = 4,
+  currentLevel = 0,
   playerBlock,
   finalBlock,
   title,
@@ -14,21 +23,10 @@ var levels = {},
     pathLenght: 600,
     pathY: 300
   },
-  //textureArray = ["resize1", "resize2", "colorize", "rotate", "select"],
-  textureCount = 0,
-  scnCurrent,
+  scnCurrent = new Container(),
   actionCounter = 0,
   selectCounter = 0,
   scnOld;
-
-//alias
-var Graphics = PIXI.Graphics,
-  Container = PIXI.Container,
-  Text = PIXI.Text,
-  Loader = PIXI.loader,
-  Sprite = PIXI.Sprite,
-  Texture = PIXI.Texture,
-  stage = new Container();
 
 //carrega Json e inicia sprites
 $.getJSON("levels.json", function (ret) {
@@ -42,7 +40,6 @@ document.body.appendChild(app.renderer.view);
 function setup() {
   //cria fase
   setLevel();
-  app.renderer.render(stage);
 }
 
 function gameLoop() { }
@@ -50,7 +47,13 @@ function gameLoop() { }
 function play() { }
 
 //fim da fase ou do jogo
-function end() { }
+function end() {
+  console.log('end');
+
+  currentLevel++;
+  resetLevel();
+
+}
 
 var defBlock = function (height, color, alpha, id) {
   var obj = new Graphics(),
@@ -107,18 +110,20 @@ function makePath() {
 }
 
 //define textos
-function makeText(text) {
+function makeText(text, posY, size, stroke) {
   var style = new PIXI.TextStyle({
     fontFamily: "Arial",
-    fontSize: 32,
+    fontSize: size,
     fontWeight: "bold",
-    fill: "white"
+    fill: "white",
+    stroke: '#4a1850',
+    strokeThickness: stroke,
   });
 
   var obj = new Text(text, style);
 
   obj.x = app.renderer.view.width / 2 - obj.width / 2;
-  obj.y = 100;
+  obj.y = posY;
 
   return obj;
 }
@@ -130,6 +135,7 @@ function loadSprites() {
     .add("assets/imgs/colorize.png")
     .add("assets/imgs/rotate.png")
     .add("assets/imgs/select.png")
+    .add("assets/imgs/win.png")
     .load(setup);
 }
 
@@ -236,8 +242,6 @@ function setModifierSelect(obj, index) {
 
 //posiciona e insere objetos na cena
 function setLevel() {
-  scnCurrent = new Container();
-
   //bloco inicial
   playerBlock = new defBlock(
     levels[currentLevel].initial.size,
@@ -261,7 +265,7 @@ function setLevel() {
   playerBlockMod.x = -100;
 
   //titulo fase
-  title = makeText(levels[currentLevel].name);
+  title = makeText(levels[currentLevel].name, 100, 42, 8);
 
   scnCurrent.addChild(makePath());
   scnCurrent.addChild(title);
@@ -276,6 +280,8 @@ function setLevel() {
   scnCurrent.addChild(playerBlock);
 
   app.stage.addChild(scnCurrent);
+
+  app.renderer.render(stage);
 }
 
 //selecao de modificadores 
@@ -312,8 +318,25 @@ function moveToTarget(obj, target) {
 
 //verifica condições para o fim da fase
 function verifyEnd(obj) {
-  if (obj.x == finalBlock.x) {
-    end();
+  if (obj.x == finalBlock.x) {//bloco chegou na final
+    var origin;
+
+    if (playerBlock) {
+      origin = playerBlock;
+    } else {
+      origin = playerBlockMod;
+    };
+
+    //validações
+    var mathColor = origin.graphicsData[0].fillColor == finalBlock.graphicsData[0].fillColor;
+    var mathSize = origin.height == finalBlock.height;
+
+    if (mathColor && mathSize) {
+      end();
+    } else {
+      missIt();
+    };
+
   } else {
     applyModify(obj);
   }
@@ -323,6 +346,26 @@ function verifyEnd(obj) {
 function applyModify(obj) {
   activeModifiers[actionCounter - 1].modFunc(obj);
 }
+
+function missIt() {
+  scnCurrent.addChild(makeText('Sorry, try again.', 230, 20, 6));
+
+  setTimeout(function () {
+    resetLevel();
+  }, 1000);
+}
+
+function resetLevel(){
+  app.stage.removeChild(scnCurrent);
+
+  activeModifiers = [],
+  scnCurrent = new Container(),
+  actionCounter = 0,
+  selectCounter = 0,
+  scnOld;
+
+  setup();
+};
 
 //efeito de glow
 var fxGlow = function (obj) {
@@ -392,6 +435,7 @@ var colorizeIt = function (obj) {
 
     function clearOldPlayer() {
       playerBlock.destroy();
+      playerBlock = undefined;
       setAction(playerBlockMod);
     };
   }
