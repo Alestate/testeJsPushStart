@@ -4,7 +4,7 @@ var renderer = PIXI.autoDetectRenderer(800, 600);
 
 //global vars
 var levels = {},
-  currentLevel = 1,
+  currentLevel = 4,
   playerBlock,
   finalBlock,
   title,
@@ -14,10 +14,11 @@ var levels = {},
     pathLenght: 600,
     pathY: 300
   },
-  textureArray = ["resize1", "resize2", "colorize", "rotate", "select"],
+  //textureArray = ["resize1", "resize2", "colorize", "rotate", "select"],
   textureCount = 0,
   scnCurrent,
   actionCounter = 0,
+  selectCounter = 0,
   scnOld;
 
 //alias
@@ -26,42 +27,53 @@ var Graphics = PIXI.Graphics,
   Text = PIXI.Text,
   Loader = PIXI.loader,
   Sprite = PIXI.Sprite,
+  Texture = PIXI.Texture,
   stage = new Container();
 
 //carrega Json e inicia sprites
-$.getJSON("levels.json", function(ret) {
+$.getJSON("levels.json", function (ret) {
   levels = ret;
   loadSprites();
 });
 
 document.body.appendChild(app.renderer.view);
 
+//starting up
 function setup() {
   //cria fase
   setLevel();
   app.renderer.render(stage);
 }
 
-function gameLoop() {}
+function gameLoop() { }
 
-function play() {}
+function play() { }
 
-function end() {}
+//fim da fase ou do jogo
+function end() { }
 
-var defBlock = function(height, color, alpha, id) {
-  var obj = new Graphics();
+var defBlock = function (height, color, alpha, id) {
+  var obj = new Graphics(),
+    setSize;
 
   obj.loopBol = true;
   obj.dataFunc = new fxGlow(obj);
 
-  obj.interactive = true;
-  obj.buttonMode = true;
+  if (id == 1) {
+    obj.interactive = true;
+    obj.buttonMode = true;
+  }
 
   //acoes na selecao do playerBlock
-  obj.on("pointerdown", function() {
-    obj.loopBol = false;
-    setAction(obj);
+  obj.on("pointerdown", function () {
+    if (obj.loopBol) {
+      obj.loopBol = false;
+      obj.interactive = false;
+      obj.buttonMode = false;
+      setAction(obj);
+    }
   });
+
 
   obj.beginFill(parseInt("0x" + color.slice(1)), alpha);
 
@@ -69,13 +81,19 @@ var defBlock = function(height, color, alpha, id) {
   obj.drawRoundedRect(0, 0, widthUnit - 2, widthUnit * height - 2, 5);
   obj.endFill();
 
+  if (id == -1 || id == 0) {
+    setSize = -1
+  } else {
+    setSize = 1
+  };
   obj.pivot.set(widthUnit / 2 - 1, widthUnit * height / 2 - 1);
-  obj.x = (app.renderer.view.width / 2) - (pathProp.pathLenght / 2 * id) - (widthUnit / 2 * id);
+  obj.x = (app.renderer.view.width / 2) - (pathProp.pathLenght / 2 * setSize) - (widthUnit / 2 * setSize);
   obj.y = pathProp.pathY;
 
   return obj;
 };
 
+//define a linha de caminho
 function makePath() {
   var obj = new Graphics();
   obj.lineStyle(2, 0xffffff, 1);
@@ -88,6 +106,7 @@ function makePath() {
   return obj;
 }
 
+//define textos
 function makeText(text) {
   var style = new PIXI.TextStyle({
     fontFamily: "Arial",
@@ -104,6 +123,7 @@ function makeText(text) {
   return obj;
 }
 
+//carrega imagens para sprites
 function loadSprites() {
   Loader.add("assets/imgs/resize1.png")
     .add("assets/imgs/resize2.png")
@@ -113,6 +133,7 @@ function loadSprites() {
     .load(setup);
 }
 
+//define modificadores e suas acoes
 function setModifier(count, index) {
   var obj, modifierName, modifFunc;
 
@@ -121,9 +142,7 @@ function setModifier(count, index) {
   modifierName = objLayerModifs.type;
 
   if (modifierName == "resize") {
-    modifierName =
-      objLayerModifs.type +
-      objLayerModifs[Object.keys(objLayerModifs)[1]].toString();
+    modifierName = objLayerModifs.type + objLayerModifs[Object.keys(objLayerModifs)[1]].toString();
   }
 
   obj = new Sprite(
@@ -135,60 +154,22 @@ function setModifier(count, index) {
   //define funcoes de modificacao
   switch (modifierName) {
     //reduz tamanho
-    case "resize1":
-      obj.modFunc = function(target, id) {
-        TweenMax.to(target, 0.5, {
-          height: 50,
-          ease: Power2.easeOut,
-          onComplete: setAction,
-          onCompleteParams: [target]
-        });
-
-        obj.destroy();
-      };
+    case 'resize1':
+      obj.modFunc = new sizeDown(obj);
       break;
 
     //aumenta tamanho
-    case "resize2":
-      obj.modFunc = function(target, id) {
-        TweenMax.to(target, 0.5, {
-          height: 100,
-          ease: Power2.easeOut,
-          onComplete: setAction,
-          onCompleteParams: [target]
-        });
-
-        obj.destroy();
-      };
+    case 'resize2':
+      obj.modFunc = new sizeUp(obj);
       break;
 
     //muda cor
-    case "colorize":
-      obj.modFunc = function(target, id) {
-        var newPlayerBlock=new defBlock(1,'#0000ff', 0, 1);
-        newPlayerBlock.x=obj.x;
-        newPlayerBlock.y=obj.y;
-        newPlayerBlock.alpha=0;
-        newPlayerBlock.loopBol = false;
+    case 'colorize':
+      obj.modFunc = new colorizeIt(obj);
+      break;
 
-        scnCurrent.addChild(newPlayerBlock);
-
-        var update = function() {
-          target.alpha -= 0.033;
-          newPlayerBlock.alpha += 0.033;
-
-          console.log(newPlayerBlock.alpha);
-        };
-
-        TweenMax.to(target, 0.5, {
-          onUpdate: update,
-          onUpdateParams: [target],
-          onComplete:setAction,
-          onCompleteParams:[newPlayerBlock]
-        });
-
-        obj.destroy();
-      };
+    case 'select':
+      obj.modFunc = new nope(obj);
       break;
   }
 
@@ -204,17 +185,56 @@ function setModifier(count, index) {
       break;
   }
 
+  //tratamento para modificador select
   if (modifierName == "select") {
     obj.interactive = true;
     obj.buttonMode = true;
-    obj.on("pointerdown", function() {
-      selectModifier(this);
+    obj.on("pointerdown", function () {
+      selectModifier(obj);
     });
   }
 
   return obj;
 }
 
+//define modificadores quando select
+function setModifierSelect(obj, index) {
+  var modifierName, modifFunc;
+
+  if (index == 2) {
+    modifierName = "resize2";
+  } else {
+    var objLayerModifs = levels[currentLevel].modifiers[0].options[index];
+
+    modifierName = objLayerModifs.type;
+
+    if (modifierName == "resize") {
+      modifierName = objLayerModifs.type + objLayerModifs[Object.keys(objLayerModifs)[1]].toString();
+    };
+  };
+
+  var texture = Texture.fromImage(
+    "assets/imgs/" + modifierName + ".png"
+  );
+
+  obj.setTexture(texture);
+
+  switch (modifierName) {
+    case 'resize1':
+      obj.modFunc = new sizeDown(obj);
+      break;
+
+    case 'resize2':
+      obj.modFunc = new sizeUp(obj);
+      break;
+
+    case 'colorize':
+      obj.modFunc = new colorizeIt(obj);
+      break;
+  }
+}
+
+//posiciona e insere objetos na cena
 function setLevel() {
   scnCurrent = new Container();
 
@@ -233,6 +253,12 @@ function setLevel() {
     .3,
     -1
   );
+  finalBlock.loopBol = false;
+
+  //bloco transformado em azul
+  playerBlockMod = new defBlock(1, '#0000ff', 1, 0);
+  playerBlockMod.loopBol = false;
+  playerBlockMod.x = -100;
 
   //titulo fase
   title = makeText(levels[currentLevel].name);
@@ -246,22 +272,22 @@ function setLevel() {
   }
 
   scnCurrent.addChild(finalBlock);
+  scnCurrent.addChild(playerBlockMod);
   scnCurrent.addChild(playerBlock);
 
   app.stage.addChild(scnCurrent);
 }
 
+//selecao de modificadores 
 function selectModifier(obj) {
-  var texture = PIXI.Texture.fromImage(
-    "assets/imgs/" + textureArray[textureCount] + ".png"
-  );
-  obj.setTexture(texture);
+  setModifierSelect(obj, selectCounter);
 
-  if (textureCount < textureArray.length - 2) {
-    textureCount++;
+  if (selectCounter < levels[currentLevel].modifiers[0].options.length) {
+    selectCounter++
   } else {
-    textureCount = 0;
+    selectCounter = 0;
   }
+
 }
 
 //define proxima acao para playerBlock
@@ -274,6 +300,7 @@ function setAction(obj) {
   }
 }
 
+//desloca o playerBlock
 function moveToTarget(obj, target) {
   TweenMax.to(obj, 1.3, {
     x: target.x,
@@ -283,6 +310,7 @@ function moveToTarget(obj, target) {
   });
 }
 
+//verifica condições para o fim da fase
 function verifyEnd(obj) {
   if (obj.x == finalBlock.x) {
     end();
@@ -291,11 +319,13 @@ function verifyEnd(obj) {
   }
 }
 
+//aplica ações dos modificadores no playerBlock
 function applyModify(obj) {
-  var activeMod = activeModifiers[actionCounter - 1].modFunc(obj, 1);
+  activeModifiers[actionCounter - 1].modFunc(obj);
 }
 
-var fxGlow = function(obj) {
+//efeito de glow
+var fxGlow = function (obj) {
   var alpha = 1,
     dir = -1,
     loopFunc = setInterval(frame, 17);
@@ -313,3 +343,65 @@ var fxGlow = function(obj) {
     }
   }
 };
+
+//metodos para modificação
+var sizeUp = function (obj) {
+  var ret = function (target) {
+    TweenMax.to(target, 0.5, {
+      height: 100,
+      ease: Power2.easeOut,
+      onComplete: setAction,
+      onCompleteParams: [target]
+    });
+
+    obj.destroy();
+  };
+  return ret;
+}
+
+var sizeDown = function (obj) {
+  var ret = function (target) {
+    TweenMax.to(target, 0.5, {
+      height: 50,
+      ease: Power2.easeOut,
+      onComplete: setAction,
+      onCompleteParams: [target]
+    });
+
+    obj.destroy();
+  };
+  return ret;
+}
+
+var colorizeIt = function (obj) {
+  var ret = function (target) {
+    playerBlockMod.x = playerBlock.x;
+    playerBlockMod.height = playerBlock.height;
+
+    var update = function () {
+      target.alpha -= 0.033;
+    };
+
+    TweenMax.to(target, 0.5, {
+      onUpdate: update,
+      onUpdateParams: [target],
+      onComplete: clearOldPlayer,
+    });
+
+    obj.destroy();//deleta o modificador
+
+    function clearOldPlayer() {
+      playerBlock.destroy();
+      setAction(playerBlockMod);
+    };
+  }
+  return ret;
+}
+
+var nope = function (obj) {
+  var ret = function (target) {
+    setAction(target);
+    obj.destroy();
+  }
+  return ret;
+}
