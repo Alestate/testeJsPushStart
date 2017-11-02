@@ -100,5 +100,56 @@
         ]
       }
     ]
+  },
+  {
+    "name": "Bonus Level",
+    "initial": {
+      "size": 2,
+      "color": "#ff0000"
+    },
+    "final": {
+      "size": 2,
+      "color": "#0000ff",
+      "rotation":1.5708
+    },
+    "modifiers": [
+      {
+        "type": "select",
+        "options": [
+          {
+            "type": "colorize",
+            "color": "#0000ff"
+          },
+          {
+            "type": "resize",
+            "size": 1
+          },
+          {
+            "type": "rotate",
+            "size": 1.5708
+          }
+        ]
+      },
+      {
+        "type": "select",
+        "options": [
+          {
+            "type": "colorize",
+            "color": "#0000ff"
+          },
+          {
+            "type": "resize",
+            "size": 1
+          },
+          {
+            "type": "rotate",
+            "size": 1.5708
+          }
+        ]
+      }
+
+    ]
   }
+
+
 ]

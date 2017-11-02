@@ -13,7 +13,7 @@ const Graphics = PIXI.Graphics,
 
 //global vars
 var levels = {},
-  currentLevel = 0,
+  currentLevel = 5,
   playerBlock,
   finalBlock,
   title,
@@ -55,7 +55,7 @@ function end() {
 
 }
 
-var defBlock = function (height, color, alpha, id) {
+var defBlock = function (height, color, alpha, id, rotation) {
   var obj = new Graphics(),
     setSize;
 
@@ -77,7 +77,6 @@ var defBlock = function (height, color, alpha, id) {
     }
   });
 
-
   obj.beginFill(parseInt("0x" + color.slice(1)), alpha);
 
   obj.lineStyle(2, 0xffffff, 0.5);
@@ -92,6 +91,10 @@ var defBlock = function (height, color, alpha, id) {
   obj.pivot.set(widthUnit / 2 - 1, widthUnit * height / 2 - 1);
   obj.x = (app.renderer.view.width / 2) - (pathProp.pathLenght / 2 * setSize) - (widthUnit / 2 * setSize);
   obj.y = pathProp.pathY;
+
+  if(rotation!=undefined){
+    obj.rotation=rotation;
+  };
 
   return obj;
 };
@@ -147,12 +150,12 @@ function setModifier(count, index) {
 
   modifierName = objLayerModifs.type;
 
-  if (modifierName == "resize") {
+  if (modifierName == 'resize') {
     modifierName = objLayerModifs.type + objLayerModifs[Object.keys(objLayerModifs)[1]].toString();
   }
 
   obj = new Sprite(
-    Loader.resources["assets/imgs/" + modifierName + ".png"].texture
+    Loader.resources['assets/imgs/' + modifierName + '.png'].texture
   );
 
   obj.anchor.set(0.5, 0.5);
@@ -192,7 +195,7 @@ function setModifier(count, index) {
   }
 
   //tratamento para modificador select
-  if (modifierName == "select") {
+  if (modifierName == 'select') {
     obj.interactive = true;
     obj.buttonMode = true;
     obj.on("pointerdown", function () {
@@ -210,6 +213,9 @@ function setModifierSelect(obj, index) {
   if (index == 2) {
     modifierName = "resize2";
   } else {
+    if(index == 3){
+      index=2
+    };
     var objLayerModifs = levels[currentLevel].modifiers[0].options[index];
 
     modifierName = objLayerModifs.type;
@@ -237,6 +243,9 @@ function setModifierSelect(obj, index) {
     case 'colorize':
       obj.modFunc = new colorizeIt(obj);
       break;
+    case 'rotate':
+      obj.modFunc = new rotateIt(obj);
+      break;
   }
 }
 
@@ -255,7 +264,8 @@ function setLevel() {
     levels[currentLevel].final.size,
     levels[currentLevel].final.color,
     .3,
-    -1
+    -1,
+    levels[currentLevel].final.rotation
   );
   finalBlock.loopBol = false;
 
@@ -328,11 +338,12 @@ function verifyEnd(obj) {
     };
 
     //validações
-    var mathColor = origin.graphicsData[0].fillColor == finalBlock.graphicsData[0].fillColor;
-    var mathSize = origin.height == finalBlock.height;
+    var matchColor = origin.graphicsData[0].fillColor == finalBlock.graphicsData[0].fillColor;
+    var matchSize = origin.height == finalBlock.height;
+    var matchRotation = origin.rotation==finalBlock.rotation;//fase bonus
 
-    if (mathColor && mathSize) {
-      end();
+    if (matchColor && matchSize && matchRotation) {
+      win();
     } else {
       missIt();
     };
@@ -347,6 +358,46 @@ function applyModify(obj) {
   activeModifiers[actionCounter - 1].modFunc(obj);
 }
 
+function win() {
+  currentLevel++;
+
+  var obj = new Sprite(
+    Loader.resources['assets/imgs/win.png'].texture
+  );
+  obj.setScale=0;
+  obj.anchor.set(0.5, 0.5);
+  obj.scale.x = obj.setScale;
+  obj.scale.y = obj.setScale;
+  obj.x = app.view.width / 2;
+  obj.y = app.view.height / 2;
+
+  scnCurrent.addChild(obj);
+
+  var update = function () {
+    obj.scale.x = obj.setScale/100;
+    obj.scale.y = obj.setScale/100;
+  };
+
+  TweenMax.fromTo(obj, .8,
+    {
+      setScale: 0,
+      autoCSS: false
+    },
+    {
+      setScale: 100,
+      roundProps: "setScale",
+      onUpdate: update,
+      ease: Elastic.easeOut,
+      onComplete:function(){
+        setTimeout(function() {
+          resetLevel();
+        }, 1000);
+      }
+    });
+
+
+}
+
 function missIt() {
   scnCurrent.addChild(makeText('Sorry, try again.', 230, 20, 6));
 
@@ -355,14 +406,14 @@ function missIt() {
   }, 1000);
 }
 
-function resetLevel(){
+function resetLevel() {
   app.stage.removeChild(scnCurrent);
 
   activeModifiers = [],
-  scnCurrent = new Container(),
-  actionCounter = 0,
-  selectCounter = 0,
-  scnOld;
+    scnCurrent = new Container(),
+    actionCounter = 0,
+    selectCounter = 0,
+    scnOld;
 
   setup();
 };
@@ -375,8 +426,8 @@ var fxGlow = function (obj) {
 
   function frame() {
     obj.alpha = alpha;
-    alpha += 0.01 * dir;
-    if (alpha > 1 || alpha < 0.7) {
+    alpha += 0.015 * dir;
+    if (alpha > 1 || alpha < 0.6) {
       dir = dir * -1;
     }
 
@@ -391,7 +442,7 @@ var fxGlow = function (obj) {
 var sizeUp = function (obj) {
   var ret = function (target) {
     TweenMax.to(target, 0.5, {
-      height: 100,
+      height: widthUnit*2,
       ease: Power2.easeOut,
       onComplete: setAction,
       onCompleteParams: [target]
@@ -405,7 +456,7 @@ var sizeUp = function (obj) {
 var sizeDown = function (obj) {
   var ret = function (target) {
     TweenMax.to(target, 0.5, {
-      height: 50,
+      height: widthUnit,
       ease: Power2.easeOut,
       onComplete: setAction,
       onCompleteParams: [target]
@@ -420,6 +471,7 @@ var colorizeIt = function (obj) {
   var ret = function (target) {
     playerBlockMod.x = playerBlock.x;
     playerBlockMod.height = playerBlock.height;
+    playerBlockMod.rotation = playerBlock.rotation;
 
     var update = function () {
       target.alpha -= 0.033;
@@ -439,6 +491,20 @@ var colorizeIt = function (obj) {
       setAction(playerBlockMod);
     };
   }
+  return ret;
+}
+
+var rotateIt = function (obj) {
+  var ret = function (target) {
+    TweenMax.to(target, 0.5, {
+      rotation: target.rotation+1.5708,
+      ease: Power2.easeOut,
+      onComplete: setAction,
+      onCompleteParams: [target]
+    });
+
+    obj.destroy();
+  };
   return ret;
 }
 
