@@ -13,10 +13,9 @@ const Graphics = PIXI.Graphics,
 
 //global vars
 var levels = {},
-  currentLevel = 5,
+  currentLevel = 0,
   playerBlock,
   finalBlock,
-  title,
   activeModifiers = [],
   widthUnit = 50,
   pathProp = {
@@ -92,8 +91,8 @@ var defBlock = function (height, color, alpha, id, rotation) {
   obj.x = (app.renderer.view.width / 2) - (pathProp.pathLenght / 2 * setSize) - (widthUnit / 2 * setSize);
   obj.y = pathProp.pathY;
 
-  if(rotation!=undefined){
-    obj.rotation=rotation;
+  if (rotation != undefined) {
+    obj.rotation = rotation;
   };
 
   return obj;
@@ -113,7 +112,7 @@ function makePath() {
 }
 
 //define textos
-function makeText(text, posY, size, stroke) {
+function makeText(text, posY, size, stroke, color) {
   var style = new PIXI.TextStyle({
     fontFamily: "Arial",
     fontSize: size,
@@ -121,6 +120,7 @@ function makeText(text, posY, size, stroke) {
     fill: "white",
     stroke: '#4a1850',
     strokeThickness: stroke,
+    fill: [color]
   });
 
   var obj = new Text(text, style);
@@ -213,8 +213,8 @@ function setModifierSelect(obj, index) {
   if (index == 2) {
     modifierName = "resize2";
   } else {
-    if(index == 3){
-      index=2
+    if (index == 3) {
+      index = 2
     };
     var objLayerModifs = levels[currentLevel].modifiers[0].options[index];
 
@@ -251,6 +251,20 @@ function setModifierSelect(obj, index) {
 
 //posiciona e insere objetos na cena
 function setLevel() {
+  //titulo fase
+  var title = makeText(levels[currentLevel].name, 100, 42, 8, '#ffffff');
+
+  var instructions;
+
+  //instruções
+  if (currentLevel < 4) {
+    instructions = makeText('Click on the glowing block.', 160, 12, 0, '#cccccc');
+  } else {
+    instructions = makeText('Choose the modifiers and click on the glowing block.', 160, 12, 0, '#cccccc');
+  }
+
+  var author = makeText('Author: Alessandro Siqueira - alessandro.state@gmail.com', app.view.height - 20, 11, 0, '#aaaaaa');
+
   //bloco inicial
   playerBlock = new defBlock(
     levels[currentLevel].initial.size,
@@ -274,12 +288,12 @@ function setLevel() {
   playerBlockMod.loopBol = false;
   playerBlockMod.x = -100;
 
-  //titulo fase
-  title = makeText(levels[currentLevel].name, 100, 42, 8);
-
   scnCurrent.addChild(makePath());
   scnCurrent.addChild(title);
+  scnCurrent.addChild(instructions);
+  scnCurrent.addChild(author);
 
+  //modificadores
   for (var n = 0; n < levels[currentLevel].modifiers.length; n++) {
     activeModifiers.push(setModifier(levels[currentLevel].modifiers.length, n));
     scnCurrent.addChild(activeModifiers[n]);
@@ -303,7 +317,6 @@ function selectModifier(obj) {
   } else {
     selectCounter = 0;
   }
-
 }
 
 //define proxima acao para playerBlock
@@ -318,7 +331,7 @@ function setAction(obj) {
 
 //desloca o playerBlock
 function moveToTarget(obj, target) {
-  TweenMax.to(obj, 1.3, {
+  TweenMax.to(obj, 1, {
     x: target.x,
     ease: Power1.easeInOut,
     onComplete: verifyEnd,
@@ -340,7 +353,7 @@ function verifyEnd(obj) {
     //validações
     var matchColor = origin.graphicsData[0].fillColor == finalBlock.graphicsData[0].fillColor;
     var matchSize = origin.height == finalBlock.height;
-    var matchRotation = origin.rotation==finalBlock.rotation;//fase bonus
+    var matchRotation = origin.rotation == finalBlock.rotation;//fase bonus
 
     if (matchColor && matchSize && matchRotation) {
       win();
@@ -355,6 +368,7 @@ function verifyEnd(obj) {
 
 //aplica ações dos modificadores no playerBlock
 function applyModify(obj) {
+
   activeModifiers[actionCounter - 1].modFunc(obj);
 }
 
@@ -364,7 +378,7 @@ function win() {
   var obj = new Sprite(
     Loader.resources['assets/imgs/win.png'].texture
   );
-  obj.setScale=0;
+  obj.setScale = 0;
   obj.anchor.set(0.5, 0.5);
   obj.scale.x = obj.setScale;
   obj.scale.y = obj.setScale;
@@ -374,8 +388,8 @@ function win() {
   scnCurrent.addChild(obj);
 
   var update = function () {
-    obj.scale.x = obj.setScale/100;
-    obj.scale.y = obj.setScale/100;
+    obj.scale.x = obj.setScale / 100;
+    obj.scale.y = obj.setScale / 100;
   };
 
   TweenMax.fromTo(obj, .8,
@@ -388,18 +402,16 @@ function win() {
       roundProps: "setScale",
       onUpdate: update,
       ease: Elastic.easeOut,
-      onComplete:function(){
-        setTimeout(function() {
+      onComplete: function () {
+        setTimeout(function () {
           resetLevel();
-        }, 1000);
+        }, 500);
       }
     });
-
-
 }
 
 function missIt() {
-  scnCurrent.addChild(makeText('Sorry, try again.', 230, 20, 6));
+  scnCurrent.addChild(makeText('Sorry, try again.', 230, 20, 6, '#ffffff'));
 
   setTimeout(function () {
     resetLevel();
@@ -442,7 +454,7 @@ var fxGlow = function (obj) {
 var sizeUp = function (obj) {
   var ret = function (target) {
     TweenMax.to(target, 0.5, {
-      height: widthUnit*2,
+      height: widthUnit * 2,
       ease: Power2.easeOut,
       onComplete: setAction,
       onCompleteParams: [target]
@@ -469,35 +481,48 @@ var sizeDown = function (obj) {
 
 var colorizeIt = function (obj) {
   var ret = function (target) {
-    playerBlockMod.x = playerBlock.x;
-    playerBlockMod.height = playerBlock.height;
-    playerBlockMod.rotation = playerBlock.rotation;
 
-    var update = function () {
-      target.alpha -= 0.033;
-    };
+    if (!playerBlock) {
+      setTimeout(function () {
+        setAction(playerBlockMod);
+      }, 500);
 
-    TweenMax.to(target, 0.5, {
-      onUpdate: update,
-      onUpdateParams: [target],
-      onComplete: clearOldPlayer,
-    });
+      obj.destroy();//deleta o modificador
 
-    obj.destroy();//deleta o modificador
+    } else {
+      playerBlockMod.x = playerBlock.x;
+      playerBlockMod.height = playerBlock.height;
+      playerBlockMod.rotation = playerBlock.rotation;
 
-    function clearOldPlayer() {
-      playerBlock.destroy();
-      playerBlock = undefined;
-      setAction(playerBlockMod);
-    };
+      var update = function () {
+        target.alpha -= 0.033;
+      };
+
+      TweenMax.to(target, 0.5, {
+        onUpdate: update,
+        onUpdateParams: [target],
+        onComplete: clearOldPlayer,
+      });
+
+      obj.destroy();//deleta o modificador
+
+      function clearOldPlayer() {
+        playerBlock.destroy();
+        playerBlock = undefined;
+        setAction(playerBlockMod);
+      };
+    }
   }
+
+
+
   return ret;
 }
 
 var rotateIt = function (obj) {
   var ret = function (target) {
     TweenMax.to(target, 0.5, {
-      rotation: target.rotation+1.5708,
+      rotation: target.rotation + 1.5708,
       ease: Power2.easeOut,
       onComplete: setAction,
       onCompleteParams: [target]
