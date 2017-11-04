@@ -22,7 +22,7 @@ const Graphics = PIXI.Graphics,
 
 //global vars
 var levels = {},
-  currentLevel = -1,
+  currentLevel = 5,
   playerBlock,
   finalBlock,
   activeModifiers = [],
@@ -83,11 +83,17 @@ function intro() {
 //tela de creditos
 function credits() {
   var logo = new defLogo();
+  var logo2 = new Sprite.fromImage('assets/imgs/logo2.png');;
   var thanks=makeText('Thank you for playing.', app.view.height/2, 20, 2, '#ffffff');
   var seeAgain=makeText('See you again in:', (app.view.height/2)+30, 20, 2, '#ffffff');
 
   logo.x = app.view.width / 2;
   logo.y = 150;
+
+  logo2.anchor.set(.5,.5);
+  logo2.x = app.view.width / 2;
+  logo2.y = 420;
+  logo2.setScale=0;
 
   thanks.anchor.set(.5,.5);
   thanks.x = app.view.width / 2;
@@ -95,7 +101,32 @@ function credits() {
   seeAgain.anchor.set(.5,.5);
   seeAgain.x = app.view.width / 2;
 
+  var update = function () {
+    logo2.scale.x = logo2.setScale / 100;
+    logo2.scale.y = logo2.setScale / 100;
+  };
+
+  TweenMax.fromTo(logo2, .8,
+    {
+      setScale: 0,
+      autoCSS: false
+    },
+    {
+      setScale: 50,
+      roundProps: "setScale",
+      onUpdate: update,
+      ease: Elastic.easeInOut,
+      delay:1.5
+    });
+
+  TweenMax.fromTo(logo2,.5,{
+    alpha:0,
+  },{
+    alpha:1,
+  });
+
   scnCurrent.addChild(logo);
+  scnCurrent.addChild(logo2);
   scnCurrent.addChild(thanks);
   scnCurrent.addChild(seeAgain);
 
@@ -261,6 +292,8 @@ function loadSprites() {
     .add("assets/imgs/rotate.png")
     .add("assets/imgs/select.png")
     .add("assets/imgs/win.png")
+    .add("assets/imgs/logo.png")
+    .add("assets/imgs/logo2.png")
     .load(setup);
 }
 
