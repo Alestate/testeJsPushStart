@@ -1,5 +1,14 @@
+/*
+Author: Alessandro Siqueira
+Date: 5/11/2017
+Version: 1.0
+Obs.: essa aplicação presisa ser executada em ambiente HTTP (servidor), se executado em modo File
+aparecerá um erro de Cross origin requests no console.
+Ou acesse www.state.com.br/testePushStart para visualizar em um ambiente HTTP.
+*/
+
 //setting up
-var app = new PIXI.Application(800, 600, { backgroundColor: 0x000000 });
+var app = new PIXI.Application(800, 600, { backgroundColor: 0x000000, antialias: true });
 var renderer = PIXI.autoDetectRenderer(800, 600);
 
 //alias
@@ -13,7 +22,7 @@ const Graphics = PIXI.Graphics,
 
 //global vars
 var levels = {},
-  currentLevel = 0,
+  currentLevel = -1,
   playerBlock,
   finalBlock,
   activeModifiers = [],
@@ -24,8 +33,7 @@ var levels = {},
   },
   scnCurrent = new Container(),
   actionCounter = 0,
-  selectCounter = 0,
-  scnOld;
+  selectCounter = 0;
 
 //carrega Json e inicia sprites
 $.getJSON("levels.json", function (ret) {
@@ -33,17 +41,112 @@ $.getJSON("levels.json", function (ret) {
   loadSprites();
 });
 
+//cria obj canvas na página html
 document.body.appendChild(app.renderer.view);
 
 //starting up
 function setup() {
   //cria fase
-  setLevel();
+  if (currentLevel >= 0) {
+    setLevel();
+  } else {
+    intro();
+  }
+};
+
+//tela de intro
+function intro() {
+  var bg = new Sprite.fromImage('assets/imgs/introFinal.png');
+  var logo = new defLogo();
+  var btPlay = new defBtPlay();
+  var author = makeText('Author: Alessandro Siqueira - alessandro.state@gmail.com', app.view.height - 20, 11, 0, '#aaaaaa');
+
+  bg.x = 0;
+  bg.y = 0;
+
+  logo.x = app.view.width / 2;
+  logo.y = 150;
+
+  btPlay.x = app.view.width / 2;
+  btPlay.y = app.view.height - btPlay.height - 100;
+
+  scnCurrent.addChild(bg);
+  scnCurrent.addChild(logo);
+  scnCurrent.addChild(btPlay);
+  scnCurrent.addChild(author);
+
+  app.stage.addChild(scnCurrent);
+
+  renderer.render(stage);
 }
 
-function gameLoop() { }
+//tela de creditos
+function credits() {
 
-function play() { }
+}
+
+//cria btPlay
+var defBtPlay = function () {
+  var obj = new Sprite.fromImage('assets/imgs/btPlay.png');
+  var setScale;
+
+  obj.anchor.set(.5, .5);
+  obj.interactive = true;
+  obj.buttonMode = true;
+
+  var update = function () {
+    obj.scale.x = obj.setScale / 100;
+    obj.scale.y = obj.setScale / 100;
+  };
+
+  TweenMax.fromTo(obj, .5,
+    {
+      setScale: 90,
+      autoCSS: false
+    },
+    {
+      setScale: 100,
+      roundProps: "setScale",
+      onUpdate: update,
+      ease: Elastic.easeInOut,
+      repeatDelay: 2,
+      repeat: -1,
+      yoyo: true
+    });
+
+  obj.on("pointerdown", function () {
+    obj.interactive = false;
+    obj.buttonMode = false;
+    scnCurrent.addChild(fadeToBlack());
+  });
+
+  return obj;
+}
+
+function startGame() {
+  currentLevel = 0;
+  app.stage.removeChild(scnCurrent);
+  setup();
+}
+
+//cria logo
+var defLogo = function () {
+  var obj = new Sprite.fromImage('assets/imgs/logo.png');
+  var count = 0;
+
+  obj.anchor.set(.5, .5);
+
+  function loop() {
+    obj.scale.x = 1 + Math.sin(count) * 0.06;
+    obj.scale.y = 1 + Math.cos(count) * 0.08;
+
+    count += 0.1;
+  }
+
+  setInterval(loop, 20);
+
+  return obj;
+}
 
 //fim da fase ou do jogo
 function end() {
@@ -51,9 +154,9 @@ function end() {
 
   currentLevel++;
   resetLevel();
-
 }
 
+//cria blocos customizados
 var defBlock = function (height, color, alpha, id, rotation) {
   var obj = new Graphics(),
     setSize;
@@ -251,6 +354,7 @@ function setModifierSelect(obj, index) {
 
 //posiciona e insere objetos na cena
 function setLevel() {
+
   //titulo fase
   var title = makeText(levels[currentLevel].name, 100, 42, 8, '#ffffff');
 
@@ -305,7 +409,7 @@ function setLevel() {
 
   app.stage.addChild(scnCurrent);
 
-  app.renderer.render(stage);
+  renderer.render(stage);
 }
 
 //selecao de modificadores 
@@ -372,6 +476,7 @@ function applyModify(obj) {
   activeModifiers[actionCounter - 1].modFunc(obj);
 }
 
+//fim de fase
 function win() {
   currentLevel++;
 
@@ -410,6 +515,7 @@ function win() {
     });
 }
 
+//erro no fim de fase
 function missIt() {
   scnCurrent.addChild(makeText('Sorry, try again.', 230, 20, 6, '#ffffff'));
 
@@ -418,16 +524,21 @@ function missIt() {
   }, 1000);
 }
 
+//reset para próxima fase
 function resetLevel() {
   app.stage.removeChild(scnCurrent);
 
   activeModifiers = [],
     scnCurrent = new Container(),
     actionCounter = 0,
-    selectCounter = 0,
-    scnOld;
+    selectCounter = 0;
 
-  setup();
+  if (currentLevel < 5) {
+    setup();
+  } else {
+    scnCurrent.addChild(fadeToBlack());
+  }
+
 };
 
 //efeito de glow
@@ -449,6 +560,32 @@ var fxGlow = function (obj) {
     }
   }
 };
+
+var fadeToBlack = function () {
+  var obj = new Graphics();
+
+  obj.beginFill("0x000000", 1);
+  obj.drawRect(0, 0, app.view.width, app.view.height);
+  obj.endFill();
+
+  TweenMax.fromTo(obj, .3, {
+    alpha: 0,
+  }, {
+      alpha: 1,
+      ease: Power2.easeOut,
+      onComplete: defJump
+    })
+
+  function defJump() {
+    if (currentLevel < 5) {
+      startGame();
+    } else {
+      credits();
+    }
+  };
+
+  return obj;
+}
 
 //metodos para modificação
 var sizeUp = function (obj) {
