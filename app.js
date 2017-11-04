@@ -77,12 +77,31 @@ function intro() {
 
   app.stage.addChild(scnCurrent);
 
-  renderer.render(stage);
+  app.renderer.render(stage);
 }
 
 //tela de creditos
 function credits() {
+  var logo = new defLogo();
+  var thanks=makeText('Thank you for playing.', app.view.height/2, 20, 2, '#ffffff');
+  var seeAgain=makeText('See you again in:', (app.view.height/2)+30, 20, 2, '#ffffff');
 
+  logo.x = app.view.width / 2;
+  logo.y = 150;
+
+  thanks.anchor.set(.5,.5);
+  thanks.x = app.view.width / 2;
+
+  seeAgain.anchor.set(.5,.5);
+  seeAgain.x = app.view.width / 2;
+
+  scnCurrent.addChild(logo);
+  scnCurrent.addChild(thanks);
+  scnCurrent.addChild(seeAgain);
+
+  app.stage.addChild(scnCurrent);
+
+  renderer.render(stage);
 }
 
 //cria btPlay
@@ -409,7 +428,7 @@ function setLevel() {
 
   app.stage.addChild(scnCurrent);
 
-  renderer.render(stage);
+  app.renderer.render(stage);
 }
 
 //selecao de modificadores 
@@ -526,19 +545,18 @@ function missIt() {
 
 //reset para próxima fase
 function resetLevel() {
-  app.stage.removeChild(scnCurrent);
+  if (currentLevel < 6) {
+    app.stage.removeChild(scnCurrent);
 
-  activeModifiers = [],
-    scnCurrent = new Container(),
-    actionCounter = 0,
-    selectCounter = 0;
+    activeModifiers = [],
+      scnCurrent = new Container(),
+      actionCounter = 0,
+      selectCounter = 0;
 
-  if (currentLevel < 5) {
     setup();
   } else {
     scnCurrent.addChild(fadeToBlack());
   }
-
 };
 
 //efeito de glow
@@ -568,21 +586,24 @@ var fadeToBlack = function () {
   obj.drawRect(0, 0, app.view.width, app.view.height);
   obj.endFill();
 
-  TweenMax.fromTo(obj, .3, {
+  obj.x = 0;
+  obj.y = 0;
+
+  TweenMax.fromTo(obj, .5, {
     alpha: 0,
   }, {
       alpha: 1,
       ease: Power2.easeOut,
       onComplete: defJump
-    })
+    });
 
-  function defJump() {
-    if (currentLevel < 5) {
-      startGame();
-    } else {
-      credits();
-    }
-  };
+    function defJump(){
+      if(currentLevel<6){
+        startGame();
+      }else{
+        credits();
+      }
+    };
 
   return obj;
 }
