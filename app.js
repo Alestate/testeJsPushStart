@@ -22,7 +22,7 @@ const Graphics = PIXI.Graphics,
 
 //global vars
 var levels = {},
-  currentLevel = 5,
+  currentLevel = -1,
   playerBlock,
   finalBlock,
   activeModifiers = [],
@@ -58,7 +58,7 @@ function setup() {
 function intro() {
   var bg = new Sprite.fromImage('assets/imgs/introFinal.png');
   var logo = new defLogo();
-  var btPlay = new defBtPlay();
+  var btPlay = new defBtPlay(1);
   var author = makeText('Author: Alessandro Siqueira - alessandro.state@gmail.com', app.view.height - 20, 11, 0, '#aaaaaa');
 
   bg.x = 0;
@@ -68,7 +68,7 @@ function intro() {
   logo.y = 150;
 
   btPlay.x = app.view.width / 2;
-  btPlay.y = app.view.height - btPlay.height - 100;
+  btPlay.y = app.view.height - btPlay.height;
 
   scnCurrent.addChild(bg);
   scnCurrent.addChild(logo);
@@ -84,22 +84,28 @@ function intro() {
 function credits() {
   var logo = new defLogo();
   var logo2 = new Sprite.fromImage('assets/imgs/logo2.png');;
-  var thanks=makeText('Thank you for playing.', app.view.height/2, 20, 2, '#ffffff');
-  var seeAgain=makeText('See you again in:', (app.view.height/2)+30, 20, 2, '#ffffff');
+  var thanks = makeText('Thank you for playing.', app.view.height / 2, 20, 2, '#ffffff');
+  var seeAgain = makeText('See you again in:', (app.view.height / 2) + 30, 20, 2, '#ffffff');
+  var btAgain = new defBtPlay(2);
 
-  logo.x = app.view.width / 2;
+  var midWidth = app.view.width / 2;
+
+  logo.x = midWidth;
   logo.y = 150;
 
-  logo2.anchor.set(.5,.5);
-  logo2.x = app.view.width / 2;
+  logo2.anchor.set(.5, .5);
+  logo2.x = midWidth;
   logo2.y = 420;
-  logo2.setScale=0;
+  logo2.setScale = 0;
 
-  thanks.anchor.set(.5,.5);
-  thanks.x = app.view.width / 2;
+  thanks.anchor.set(.5, .5);
+  thanks.x = midWidth;
 
-  seeAgain.anchor.set(.5,.5);
-  seeAgain.x = app.view.width / 2;
+  seeAgain.anchor.set(.5, .5);
+  seeAgain.x = midWidth;
+
+  btAgain.x = midWidth;
+  btAgain.y = 550;
 
   var update = function () {
     logo2.scale.x = logo2.setScale / 100;
@@ -108,27 +114,24 @@ function credits() {
 
   TweenMax.fromTo(logo2, .8,
     {
+      alpha: 0,
       setScale: 0,
       autoCSS: false
     },
     {
+      alpha: 1,
       setScale: 50,
       roundProps: "setScale",
       onUpdate: update,
       ease: Elastic.easeInOut,
-      delay:1.5
+      delay: 1.5
     });
-
-  TweenMax.fromTo(logo2,.5,{
-    alpha:0,
-  },{
-    alpha:1,
-  });
 
   scnCurrent.addChild(logo);
   scnCurrent.addChild(logo2);
   scnCurrent.addChild(thanks);
   scnCurrent.addChild(seeAgain);
+  scnCurrent.addChild(btAgain);
 
   app.stage.addChild(scnCurrent);
 
@@ -136,8 +139,18 @@ function credits() {
 }
 
 //cria btPlay
-var defBtPlay = function () {
-  var obj = new Sprite.fromImage('assets/imgs/btPlay.png');
+var defBtPlay = function (id) {
+  var obj;
+
+  switch (id) {
+    case 1:
+      obj = new Sprite.fromImage('assets/imgs/btPlay.png');
+      break;
+    case 2:
+      obj = new Sprite.fromImage('assets/imgs/btAgain.png');
+      break;
+  }
+
   var setScale;
 
   obj.anchor.set(.5, .5);
@@ -165,10 +178,23 @@ var defBtPlay = function () {
     });
 
   obj.on("pointerdown", function () {
-    obj.interactive = false;
-    obj.buttonMode = false;
-    scnCurrent.addChild(fadeToBlack());
+    switch (id) {
+      case 1:
+        obj.interactive = false;
+        obj.buttonMode = false;
+        scnCurrent.addChild(fadeToBlack());
+        break;
+
+      case 2:
+        obj.interactive = false;
+        obj.buttonMode = false;
+        currentLevel = -1;
+        resetLevel();
+        break;
+    }
+
   });
+
 
   return obj;
 }
@@ -200,8 +226,6 @@ var defLogo = function () {
 
 //fim da fase ou do jogo
 function end() {
-  console.log('end');
-
   currentLevel++;
   resetLevel();
 }
@@ -294,6 +318,9 @@ function loadSprites() {
     .add("assets/imgs/win.png")
     .add("assets/imgs/logo.png")
     .add("assets/imgs/logo2.png")
+    .add("assets/imgs/introFinal.png")
+    .add("assets/imgs/btPlay.png")
+    .add("assets/imgs/btAgain.png")
     .load(setup);
 }
 
@@ -630,13 +657,13 @@ var fadeToBlack = function () {
       onComplete: defJump
     });
 
-    function defJump(){
-      if(currentLevel<6){
-        startGame();
-      }else{
-        credits();
-      }
-    };
+  function defJump() {
+    if (currentLevel < 6) {
+      startGame();
+    } else {
+      credits();
+    }
+  };
 
   return obj;
 }
