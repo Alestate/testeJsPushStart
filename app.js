@@ -2,7 +2,7 @@
 Author: Alessandro Siqueira
 Date: 5/11/2017
 Version: 1.0
-Obs.: essa aplicação presisa ser executada em ambiente HTTP (servidor), se executado em modo File
+Obs.: essa aplicação precisa ser executada em ambiente HTTP (servidor), se executado em modo File
 aparecerá um erro de Cross origin requests no console.
 Ou acesse www.state.com.br/testePushStart para visualizar em um ambiente HTTP.
 */
